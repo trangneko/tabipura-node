@@ -18,7 +18,7 @@ app.use(bodyParser.json());
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
 const generationConfig = {
-  temperature: 1,
+  temperature: 0.6,
   topP: 0.95,
   topK: 64,
   maxOutputTokens: 8192,
@@ -43,6 +43,12 @@ const jsonSchema = {
     interest: {
       type: "string",
     },
+    tips: {
+      type: "array",
+      items: {
+        type: "string",
+      },
+    },
     days: {
       type: "array",
       items: {
@@ -50,35 +56,35 @@ const jsonSchema = {
         properties: {
           day: {
             type: "integer",
-            date: { type: "string", pattern: "^(\\d{4})-(\\d{2})-(\\d{2})$" },
           },
+          date: { type: "string", pattern: "^(\\d{4})-(\\d{2})-(\\d{2})$" },
           activities: {
             type: "array",
-            properties: {
-              place: {
-                type: "string",
+            items: {
+              type: "object",
+              properties: {
+                place: {
+                  type: "string",
+                },
+                coordinates: {
+                  type: "object",
+                  properties: {
+                    lat: { type: "number" },
+                    lng: { type: "number" },
+                  },
+                },
+                address: { type: "string" },
+                imageUrl: { type: "string" },
+                description: {
+                  type: "string",
+                },
               },
-              coordinates: {
-                "type": "object",
-                "properties": {
-                  "lat": { "type": "number" },
-                  "lng": { "type": "number" },
-                }
-              },
-              address: { "type": "string" },
-              imageUrl: { "type": "string" },
-              description: {
-                type: "string",
-              }
             },
             required: ["place", "description"],
           },
         },
         required: ["day", "date", "activities"],
       },
-    },
-    tips: {
-      type: "string",
     },
   },
   required: [
@@ -87,11 +93,13 @@ const jsonSchema = {
     "budget_type",
     "trip_pace",
     "interest",
+    "tips",
     "days",
   ],
 };
 
 async function generateTripPlan(
+  language,
   location,
   dateStart,
   dateEnd,
@@ -101,21 +109,20 @@ async function generateTripPlan(
   interest
 ) {
   const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-pro",
+    model: "gemini-1.5-flash",
     generationConfig: generationConfig,
   });
 
   const startDate = parseISO(dateStart);
   const endDate = parseISO(dateEnd);
   const period = differenceInDays(endDate, startDate) + 1;
-  console.log("number of days:", period);
 
   const prompt = `You are a smart travel planner. Plan a ${period}-day trip in ${location} from ${startDate} to ${endDate} with these conditions:
   - Trip type (I go travel with...): ${tripType}
   - Budget type: ${budgetType}
   - Trip pace: ${tripPace}
   - Interest: ${interest}
-  You should design destinations near each other in one day so it's convenient. Remember that all the "place" in schema must be real places, not your words. Answer following JSON schema.<JSONSchema>${JSON.stringify(
+  You should design destinations near each other in one day so it's convenient. Remember that all the "place" in schema must be real places, not your words. Answer following JSON schema with the value translated into ${language} language.<JSONSchema>${JSON.stringify(
     jsonSchema
   )}</JSONSchema>`;
 
@@ -130,10 +137,12 @@ async function generateTripPlan(
     for (const day of jsonResponse.days) {
       for (const activity of day.activities) {
         const coords = await getCoordinates(location, activity.place);
-        activity.coordinates = coords ? { lat: coords.lat, lng: coords.lng } : null;
-        activity.address = coords ? coords.formatted_address : null;
-        activity.imageUrl = coords ? coords.imageUrl : null;
-        console.log("coords: ",coords);
+        activity.coordinates = coords
+          ? { lat: coords.lat, lng: coords.lng }
+          : activity.coordinates;
+        activity.address = coords ? coords.formatted_address : activity.address;
+        activity.imageUrl = coords ? coords.imageUrl : activity.imageUrl;
+        // console.log("coords ", coords);
       }
     }
     return jsonResponse;
@@ -145,6 +154,7 @@ async function generateTripPlan(
 
 app.post("/generate-trip", async (req, res) => {
   const {
+    language,
     location,
     dateStart,
     dateEnd,
@@ -156,6 +166,7 @@ app.post("/generate-trip", async (req, res) => {
 
   try {
     const tripPlan = await generateTripPlan(
+      language,
       location,
       dateStart,
       dateEnd,

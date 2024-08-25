@@ -21,7 +21,7 @@ const getCoordinates = async (city, place) => {
       {
         params: {
           fields: "formatted_address,name,rating,geometry,photos",
-          input: place,
+          input: `${city}, ${place}`,
           inputtype: "textquery",
           key: process.env.GOOGLE_API_KEY,
         },
