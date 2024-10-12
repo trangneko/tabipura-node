@@ -113,14 +113,14 @@ async function generateTripPlan(
     generationConfig: generationConfig,
   });
 
-  const startDate = parseISO(dateStart);
-  const endDate = parseISO(dateEnd);
+  const startDate = (dateStart).slice(0, 10);
+  const endDate = (dateEnd).slice(0, 10);
   const period = differenceInDays(endDate, startDate) + 1;
 
   const prompt = `You are a smart travel planner. Plan a ${period}-day trip in ${location} from ${startDate} to ${endDate} with these conditions:
   - Trip type (I go travel with...): ${tripType}
   - Budget type: ${budgetType}
-  - Trip pace: ${tripPace}
+  - Trip pace: ${tripPace} (from 0 to 1)
   - Interest: ${interest}
   You should design destinations near each other in one day so it's convenient. Remember that all the "place" in schema must be real places, not your words. Answer following JSON schema with the value translated into ${language} language.<JSONSchema>${JSON.stringify(
     jsonSchema
