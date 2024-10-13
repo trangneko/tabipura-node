@@ -66,6 +66,9 @@ const jsonSchema = {
                 place: {
                   type: "string",
                 },
+                placeId: {
+                  type: "string",
+                },
                 coordinates: {
                   type: "object",
                   properties: {
@@ -80,7 +83,7 @@ const jsonSchema = {
                 },
               },
             },
-            required: ["place", "description"],
+            required: ["place", "placeId", "address", "imageUrl", "coordinates", "description"],
           },
         },
         required: ["day", "date", "activities"],
